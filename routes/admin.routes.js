@@ -1,23 +1,45 @@
-import express from "express"
-import { actualizar, borrarMensaje, guardarMensaje, login, mostrarMensajes, register } from "../controllers/admin.controller.js"
+// routes/admin.routes.js
+import express from "express";
+import {
+    register,
+    login,
+    actualizar,
+    guardarMensaje,
+    mostrarMensajes,
+    borrarMensaje,
+} from "../controllers/admin.controller.js";
+import tokenverification from "../middleware/jwt.js";
+
+const router = express.Router();
+
+// 🔐 RUTAS DE AUTENTICACIÓN ADMIN
+
+// Registrar admin (si solo tú lo usas, luego lo puedes desactivar)
+router.post("/register", register);   // POST /api/register
+
+// Login del admin
+router.post("/login", login);         // POST /api/login
 
 
-const router = express.Router()
+// 🔐 RUTAS PROTEGIDAS PARA ADMIN
 
-// rutas para admin
-
-router.post('/register', register)
-router.post('/login', login)
-router.put('/actualizar/:id', actualizar)
+// Actualizar datos del admin (nombre, correo, contraseña, etc.)
+router.put("/actualizar/:id", tokenverification, actualizar);
+// PUT /api/actualizar/:id
 
 
-// rutas de mensaje de contacto
+// 📩 RUTAS DE MENSAJES DE CONTACTO
 
-router.post('/nuevoMensaje', guardarMensaje)
-router.get('/mostrarMensajes', mostrarMensajes)
-router.delete('/borrarMensaje/:id', borrarMensaje)
+// 1) Esta la usa el formulario público de la web
+router.post("/nuevoMensaje", guardarMensaje);
+// POST /api/nuevoMensaje (PÚBLICA)
+
+// 2) Estas dos solo debería verlas el admin logueado
+router.get("/mostrarMensajes", tokenverification, mostrarMensajes);
+// GET /api/mostrarMensajes (PROTEGIDA)
+
+router.delete("/borrarMensaje/:id", tokenverification, borrarMensaje);
+// DELETE /api/borrarMensaje/:id (PROTEGIDA)
 
 
-
-
-export default router
+export default router;

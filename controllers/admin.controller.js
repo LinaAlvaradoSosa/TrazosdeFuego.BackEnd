@@ -1,61 +1,109 @@
-import { modelNames } from "mongoose";
 import Admin from "../models/admin.model.js";
-import Mensaje from "../models/contact.model.js"
+import Mensaje from "../models/contact.model.js";
 import { configDotenv } from "dotenv";
-import jwt  from "jsonwebtoken"
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 configDotenv();
 
+// ✅ REGISTER: crea admin con contraseña encriptada
 export async function register(req, res) {
-    try {
-        const { nombre, correo, contrasena } = req.body
-        if(!nombre) return res.send ('El nombre es requerido');
-        if (!correo) return res.send ('El correo es requerido');
-        if (!contrasena) return res.send ('La contrasena es requerida')
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
-        if(!emailRegex.test(correo)) return res.send('Utilice un correo valido')
-        if(!passwordRegex.test(contrasena)) return res.send ('La contrasena debe ser una mezcla de mayusculas, minusculas, un numero y un carácter especial')
+  try {
+    const { nombre, correo, contrasena } = req.body;
 
-        const buscarAdmin = await Admin.findOne({correo: correo});
-        if(buscarAdmin) return res.send('El correo ya existe')
-        
-        const newAdmin = await Admin.create(req.body)
-        
-        return res.status(201).send(newAdmin)
-        
-    } catch (error) {
-        console.log(error.message);
-        return res.status(500).send('error en el servidor')
+    if (!nombre) {
+      return res.status(400).send("El nombre es requerido");
     }
-} 
-
-export async function login (req, res) {
-    try {
-        const {correo, contrasena} = req.body;
-        const findAdmin = await Admin.findOne({correo})
-        if (!findAdmin) return res.send ('El correo no existe')
-
-        if (findAdmin) {
-            let clave = contrasena
-            if (findAdmin.contrasena == clave) {
-                let payload = {
-                    id: findAdmin._id,
-                    correo: `${findAdmin.correo}`
-                }
-                let KEY = process.env.SEGURITYKEY
-                let token = jwt.sign(payload, KEY, {expiresIn: "3h"})
-                res.status(200).json({token:token, id: findAdmin._id})
-            } else {
-                res.status(400).send({msj: "Credenciales invalidas"})
-            }
-        } else {
-            res.status(400).send({msj:"Credenciales invalidas"})
-        }
-    } catch (error) {
-        console.log(error.message);
-        res.status(500).send({error: "error en el proceso de login, conmuniquese con el admin"})
+    if (!correo) {
+      return res.status(400).send("El correo es requerido");
     }
+    if (!contrasena) {
+      return res.status(400).send("La contraseña es requerida");
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/;
+
+    if (!emailRegex.test(correo)) {
+      return res.status(400).send("Utilice un correo válido");
+    }
+
+    if (!passwordRegex.test(contrasena)) {
+      return res
+        .status(400)
+        .send(
+          "La contraseña debe mezclar mayúsculas, minúsculas, un número y un carácter especial"
+        );
+    }
+
+    const buscarAdmin = await Admin.findOne({ correo });
+    if (buscarAdmin) {
+      return res.status(400).send("El correo ya existe");
+    }
+
+    // 🔐 Encriptar contraseña
+    const hash = await bcrypt.hash(contrasena, 10);
+
+    const newAdmin = await Admin.create({
+      nombre,
+      correo,
+      contrasena: hash,
+    });
+
+    return res.status(201).send(newAdmin);
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).send("Error en el servidor");
+  }
+}
+
+// ✅ LOGIN: compara contraseña con bcrypt y genera token
+export async function login(req, res) {
+  try {
+    const { correo, contrasena } = req.body;
+
+    if (!correo || !contrasena) {
+      return res
+        .status(400)
+        .json({ msj: "Correo y contraseña son requeridos" });
+    }
+
+    const findAdmin = await Admin.findOne({ correo });
+    if (!findAdmin) {
+      return res.status(401).json({ msj: "Credenciales inválidas" });
+    }
+
+    // 🔐 Comparar contraseña con el hash guardado
+    const passwordMatch = await bcrypt.compare(
+      contrasena,
+      findAdmin.contrasena
+    );
+
+    if (!passwordMatch) {
+      return res.status(401).json({ msj: "Credenciales inválidas" });
+    }
+
+    const payload = {
+      id: findAdmin._id,
+      correo: findAdmin.correo,
+    };
+
+    const KEY = process.env.SEGURITYKEY;
+    const token = jwt.sign(payload, KEY, { expiresIn: "3h" });
+
+    return res.status(200).json({
+      token,
+      id: findAdmin._id,
+      nombre: findAdmin.nombre,
+      correo: findAdmin.correo,
+    });
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).json({
+      error: "Error en el proceso de login, comuníquese con el admin",
+    });
+  }
 }
 
 export async function actualizar (req, res) {
