@@ -136,13 +136,30 @@ export async function guardarMensaje(req, res) {
     }
 }
 export async function mostrarMensajes(req, res) {
-    try {
-        const mensaje = await Mensaje.find()
-        res.status(201).json({ok:true, mensaje})
-    } catch (error) {
-        console.log(error.message);
-        res.status(500).send({error: "Error, es posible mostrar los mensajes. Comunicate con el Admin"})
-    }
+  try {
+    const pagina = parseInt(req.query.pagina) || 1;
+    const limite = parseInt(req.query.limite) || 10;
+    const skip = (pagina - 1) * limite;
+
+    const total = await Mensaje.countDocuments();
+
+    const mensaje = await Mensaje.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limite);
+
+    res.status(200).json({
+      ok: true,
+      mensaje,
+      paginaActual: pagina,
+      totalPaginas: Math.ceil(total / limite)
+    });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send({
+      error: "No es posible mostrar los mensajes. Intenta más tarde."
+    });
+  }
 }
 export async function borrarMensaje(req, res) {
     try {
