@@ -5,17 +5,18 @@ import productos from "./routes/productos.routes.js"
 import cors from "cors"
 
 const app = express();
-app.use(cors())
-connectDB()
+app.use(cors());
+connectDB();
 
-app.use(express.json())
-app.use('/api', admin)
+app.use(express.json());
+app.use('/api', admin);
 
 app.use('/uploads', express.static('uploads')); // para ver imágenes en navegador
 app.use('/api/productos', productos);
 
+// 👇👇 CAMBIO IMPORTANTE AQUÍ
+const PORT = process.env.PORT || 3000;
 
-app.listen(3000, () =>{
-    console.log('servicio corriendo en el puerto 3000');
-    
-})
+app.listen(PORT, () => {
+    console.log(`Servicio corriendo en el puerto ${PORT}`);
+});
